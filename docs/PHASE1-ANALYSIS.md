@@ -126,3 +126,63 @@ SKIP if: <8h available before Thu, or only a README with no runnable path.
 - https://www.ziroh.com/hackathon
 - https://ziroh.com/ (Kompact positioning: CPU inference, RAG/agentic, OpenAI-compatible SDKs mentioned in search/FAQ snippets)
 - self#66 body + comments
+
+
+---
+
+## Update 2026-09-14 evening — keep A + B open (Madan)
+
+**Decision:** Do **not** lock a single option yet. Keep **A and B** both live. Brainstorm further. Create/implement **only after** settled + expert review. No rush — better a sharp Phase 1 than a half-baked Friday dump.
+
+### A vs B side-by-side (deeper)
+
+| Dimension | A GazetteApply Lite (agentic + RAG) | B India SME Policy Copilot (RAG-first) |
+| --- | --- | --- |
+| Core loop | parse → retrieve → apply → diff | retrieve → cite → answer |
+| Demo wow | Visible before/after document | Solid Q&A with citations |
+| Madan spoken defense | Strong (fixed agentic workflow) | Medium (domain RAG) |
+| Build risk in 4 days | Higher (apply step is hard) | Lower |
+| Crowd factor | Fewer “amendment agent” entries | Many “RAG chatbots” |
+| Kompact Phase 2 story | Inference on apply + cheap models on parse | Inference on answer generation |
+| Eval story | Golden amend fixtures + diff quality | Faithfulness / citation hit-rate |
+| Failure mode | Apply invents text / breaks HTML | Generic answers / weak corpus |
+| Cut-down path | CLI-only amend, drop web UI | PDF pack + CLI ask only |
+
+**Hybrid AB (worth considering, still not locked):**  
+Ship B’s RAG corpus + ask UI as the **floor**, and A’s amend pipeline as the **ceiling** behind a feature flag. Phase 1 writeup leads with whichever is more demoable by Thu. Shared OpenAI-compatible client either way.
+
+### More options (brainstorm — none locked)
+
+| ID | Name | One-liner | Why consider | Why maybe not |
+| --- | --- | --- | --- | --- |
+| A | GazetteApply Lite | Fixed agentic amendment + RAG | Best Madan fit | Apply quality risk |
+| B | SME Policy Copilot | Cited RAG over public India policy PDFs | Fastest credible demo | Crowded category |
+| C | Retail demand agent | Predict + propose restock | Matches ZIROH retail messaging | Weak data/cred for us |
+| D | Gateway shim | OpenAI-compat proxy + OTel stubs | Flatters Kompact | Infra without impact |
+| E | **Eval harness for CPU RAG** | Public benchmark + runner comparing “GPU-class” vs “CPU-budget” prompts/models via OpenAI-compat | Unique “sustainable AI” angle; judges may like measurement | Less “app”, more tooling |
+| F | **Multilingual Bharat forms agent** | Agent fills/explains gov form fields from a PDF notice (Hindi+EN) | India impact; agentic | Scope creep / UX hard |
+| G | **Contract redline assistant** | Diff two contract versions + risk bullets | Enterprise money story | Legal risk if overclaimed |
+| H | **On-device meeting notes → actions** | Local-first summarizer + task extract | Edge/CPU narrative | Commodity |
+| I | **AB hybrid** | B floor + A ceiling | De-risks calendar | Needs clear demo script so it doesn’t look unfocused |
+
+### Brainstorm prompts for expert review (not answers yet)
+
+1. Is Top-20 selection more **demo polish**, **problem novelty**, or **Kompact-readiness** narrative?
+2. Should we avoid any Maruti/branded client language and use fully synthetic verticals?
+3. Python FastAPI vs .NET minimal — which is less calendar risk for Madan this week?
+4. Is Option E (eval harness) a stronger ZIROH fit than another chatbot, even if less flashy?
+5. Solo vs add 1 teammate for writeup/video only?
+6. Exact Phase 1 submission fields/portal — still unknown; find before locking scope.
+
+### Settling criteria (use later — not today)
+
+Lock only when **two** of these are true:
+- Expert review picks a primary (A / B / I / other)
+- Madan can defend the demo in 90 seconds without notes
+- A runnable path fits remaining hours without killing Mercor/job queue
+
+Until then: **notes only**. Placeholder repo stays analysis. No app code.
+
+### Still open on #66
+- Transfer repo `mmmiitr/kompact-build-next-2026` → `krantikaridev/` when convenient (cosmetic)
+- Find submission portal details
