@@ -68,6 +68,7 @@ START_SERVER=1 ./scripts/demo_smoke.sh
 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Current social MVP architecture |
 | [`docs/EXPERT-REVIEW-PROMPT.md`](./docs/EXPERT-REVIEW-PROMPT.md) | Paste-ready external review prompt |
 | [`docs/EXPERT-REVIEW-2026-09-17.md`](./docs/EXPERT-REVIEW-2026-09-17.md) | Blunt expert review + P0/P1 |
+| [`docs/EXPERT-REVIEW-2026-09-17-HEAD.md`](./docs/EXPERT-REVIEW-2026-09-17-HEAD.md) | HEAD rescore of `1fab761` |
 | [`docs/PHASE1-ANALYSIS.md`](./docs/PHASE1-ANALYSIS.md) | Earlier brainstorm / option matrix (historical) |
 
 ## License

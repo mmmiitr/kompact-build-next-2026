@@ -1,3 +1,7 @@
+> **SUPERSEDED 2026-09-17.** Product lock is Social Content Helper.
+> Read `docs/MVP-SOCIAL-CONTENT.md` and `docs/SUBMISSION.md`.
+> This file is historical brainstorm (GazetteApply / SME RAG). Do not paste it into the portal.
+
 # Kompact / ZIROH Build Next — Phase 1 analysis
 
 Date: **2026-09-14** (IST)  

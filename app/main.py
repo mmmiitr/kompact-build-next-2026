@@ -45,7 +45,7 @@ app = FastAPI(
         "Upload short video + prompt → publish-ready social pack "
         "(metadata-first Phase 1; not a social uploader)"
     ),
-    version="0.1.1",
+    version="0.1.2",
 )
 
 
@@ -173,8 +173,6 @@ def mock_pack(filename: str, prompt: str, meta: VideoMeta) -> PublishPack:
         "ContentCreator",
         "ShortForm",
         "IndiaCreators",
-        "SustainableAI",
-        "KompactReady",
     ]
     for tok in re.findall(r"[A-Za-z]{3,}", prompt)[:5]:
         tags.append(tok.capitalize())
@@ -277,7 +275,11 @@ async def llm_pack(filename: str, prompt: str, meta: VideoMeta) -> PublishPack:
         "Be concrete and India-creator friendly. No markdown fences. "
         "You only receive filename + lightweight probe metadata + the creator "
         "prompt — not a transcript or frame analysis. Do not invent spoken "
-        "dialogue; ground copy in the prompt and metadata."
+        "dialogue; ground copy in the prompt and metadata. "
+        "Also include one Shorts-length title (≤100 chars) as `title`, one "
+        "IG-style caption (≤2200) as captions[0], and one X-length caption "
+        "(≤280) as captions[1] when possible. This is a draft helper, not an "
+        "agent loop and not video understanding."
     )
     res = (
         f"{meta.width}x{meta.height}"
@@ -375,7 +377,16 @@ async def publish_pack(
     if not video.filename:
         raise HTTPException(status_code=400, detail="video filename required")
 
-    suffix = Path(video.filename).suffix or ".bin"
+    suffix = Path(video.filename).suffix.lower() or ".bin"
+    allowed_ext = {".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi"}
+    ctype = (video.content_type or "").lower()
+    looks_video = ctype.startswith("video/") or suffix in allowed_ext
+    if not looks_video:
+        raise HTTPException(
+            status_code=400,
+            detail=f"expected a short video (mp4/mov/webm/mkv), got {video.content_type or suffix}",
+        )
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp_path = Path(tmp.name)
         raw = await video.read()
