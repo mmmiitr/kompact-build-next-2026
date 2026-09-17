@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kompact Social Content Helper</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2332;
+      --text: #e7ecf3;
+      --muted: #9aa8bc;
+      --accent: #5b8cff;
+      --ok: #3ecf8e;
+      --warn: #f0b429;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, #1e3a5f 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+    }
+    h1 { font-size: 1.6rem; margin: 0 0 0.35rem; }
+    .sub { color: var(--muted); margin-bottom: 1.5rem; line-height: 1.45; }
+    .card {
+      background: var(--card);
+      border: 1px solid #2a3648;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.35rem; }
+    input[type="file"], textarea, button {
+      width: 100%;
+      margin-bottom: 1rem;
+    }
+    textarea {
+      min-height: 88px;
+      resize: vertical;
+      background: #0d121a;
+      color: var(--text);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 0.75rem;
+      font: inherit;
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.55; cursor: wait; }
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      margin-bottom: 0.75rem;
+    }
+    .badge.mock { background: #3a2f0b; color: var(--warn); }
+    .badge.llm { background: #0d3b2a; color: var(--ok); }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0d121a;
+      border-radius: 8px;
+      padding: 1rem;
+      font-size: 0.85rem;
+      overflow: auto;
+    }
+    .err { color: #ff7b7b; }
+    ul { padding-left: 1.2rem; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Social Content Helper</h1>
+    <p class="sub">
+      Upload a short video + a prompt → get a publish-ready pack
+      (title, captions, hashtags, description, trim suggestions).
+      OpenAI-compatible; empty <code>API_KEY</code> → labeled MOCK pack.
+      Not a Kabootri uploader.
+    </p>
+
+    <form class="card" id="form">
+      <label for="video">Short video</label>
+      <input id="video" name="video" type="file" accept="video/*" required />
+
+      <label for="prompt">Prompt / angle</label>
+      <textarea id="prompt" name="prompt" placeholder="e.g. 30s tip for indie founders shipping on CPU budgets"></textarea>
+
+      <button type="submit" id="go">Generate publish pack</button>
+      <div id="status" class="sub"></div>
+    </form>
+
+    <div class="card" id="out" hidden>
+      <div id="modeBadge"></div>
+      <h2 id="title"></h2>
+      <p id="desc"></p>
+      <h3>Captions</h3>
+      <ul id="captions"></ul>
+      <h3>Hashtags</h3>
+      <p id="tags"></p>
+      <h3>Trim suggestions</h3>
+      <ul id="trims"></ul>
+      <h3>Raw JSON</h3>
+      <pre id="raw"></pre>
+    </div>
+
+    <p class="sub">
+      Docs: <a href="https://github.com/mmmiitr/kompact-build-next-2026">repo</a>
+      · Phase 1 · ZIROH Build Next 2026
+    </p>
+  </main>
+  <script>
+    const form = document.getElementById("form");
+    const status = document.getElementById("status");
+    const out = document.getElementById("out");
+    const go = document.getElementById("go");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const file = document.getElementById("video").files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append("video", file);
+      fd.append("prompt", document.getElementById("prompt").value || "");
+
+      go.disabled = true;
+      status.textContent = "Working…";
+      out.hidden = true;
+
+      try {
+        const res = await fetch("/api/publish-pack", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || JSON.stringify(data));
+        }
+        status.textContent = "Done.";
+        document.getElementById("modeBadge").innerHTML =
+          `<span class="badge ${data.mode === "MOCK" ? "mock" : "llm"}">${data.mode}</span>`;
+        document.getElementById("title").textContent = data.title;
+        document.getElementById("desc").textContent = data.description;
+        document.getElementById("captions").innerHTML = (data.captions || [])
+          .map((c) => `<li>${escapeHtml(c)}</li>`).join("");
+        document.getElementById("tags").textContent = (data.hashtags || []).join(" ");
+        document.getElementById("trims").innerHTML = (data.trim_suggestions || [])
+          .map((t) => `<li>${t.start_sec}s–${t.end_sec}s — ${escapeHtml(t.reason || "")}</li>`)
+          .join("");
+        document.getElementById("raw").textContent = JSON.stringify(data, null, 2);
+        out.hidden = false;
+      } catch (err) {
+        status.innerHTML = `<span class="err">${escapeHtml(String(err.message || err))}</span>`;
+      } finally {
+        go.disabled = false;
+      }
+    });
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+  </script>
+</body>
+</html>
