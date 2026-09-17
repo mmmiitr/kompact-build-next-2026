@@ -6,6 +6,9 @@ Upload a short video + prompt → publish-ready pack
 
 OpenAI-compatible via BASE_URL / API_KEY / MODEL.
 Empty API_KEY → deterministic MOCK pack (no network spend).
+
+Honest Phase 1 scope: metadata-first (filename + ffprobe meta + prompt).
+No transcript / Whisper / vision in this build — roadmap later.
 """
 
 from __future__ import annotations
@@ -26,12 +29,23 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+# Load .env when python-dotenv is installed (optional; no hard dep crash)
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
 STATIC_DIR = Path(__file__).parent / "static"
 
 app = FastAPI(
     title="Kompact Social Content Helper",
-    description="Upload short video + prompt → publish-ready social pack",
-    version="0.1.0",
+    description=(
+        "Upload short video + prompt → publish-ready social pack "
+        "(metadata-first Phase 1; not a social uploader)"
+    ),
+    version="0.1.1",
 )
 
 
@@ -41,6 +55,10 @@ class VideoMeta(BaseModel):
     content_type: str | None = None
     duration_seconds: float | None = None
     duration_source: str = "stub"
+    width: int | None = None
+    height: int | None = None
+    codec: str | None = None
+    probe_source: str = "stub"
 
 
 class PublishPack(BaseModel):
@@ -59,8 +77,22 @@ def _env(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
 
 
-def probe_duration(path: Path) -> tuple[float | None, str]:
-    """Return (seconds, source). Prefer ffprobe; else stub from file size."""
+def probe_video(path: Path) -> dict[str, Any]:
+    """
+    Enrich video metadata via ffprobe when available.
+
+    Returns dict with duration_seconds, duration_source, width, height,
+    codec, probe_source. Falls back to size-based duration stub.
+    """
+    out: dict[str, Any] = {
+        "duration_seconds": None,
+        "duration_source": "stub",
+        "width": None,
+        "height": None,
+        "codec": None,
+        "probe_source": "stub",
+    }
+
     ffprobe = shutil.which("ffprobe")
     if ffprobe:
         try:
@@ -72,6 +104,7 @@ def probe_duration(path: Path) -> tuple[float | None, str]:
                     "-print_format",
                     "json",
                     "-show_format",
+                    "-show_streams",
                     str(path),
                 ],
                 capture_output=True,
@@ -81,16 +114,46 @@ def probe_duration(path: Path) -> tuple[float | None, str]:
             )
             if result.returncode == 0 and result.stdout:
                 data = json.loads(result.stdout)
-                dur = data.get("format", {}).get("duration")
+                fmt = data.get("format") or {}
+                dur = fmt.get("duration")
                 if dur is not None:
-                    return float(dur), "ffprobe"
-        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError, ValueError):
+                    out["duration_seconds"] = float(dur)
+                    out["duration_source"] = "ffprobe"
+                    out["probe_source"] = "ffprobe"
+
+                streams = data.get("streams") or []
+                vstream = next(
+                    (s for s in streams if s.get("codec_type") == "video"),
+                    None,
+                )
+                if vstream:
+                    w = vstream.get("width")
+                    h = vstream.get("height")
+                    if w is not None:
+                        out["width"] = int(w)
+                    if h is not None:
+                        out["height"] = int(h)
+                    codec = vstream.get("codec_name")
+                    if codec:
+                        out["codec"] = str(codec)
+                    out["probe_source"] = "ffprobe"
+                    # Some containers put duration only on stream
+                    if out["duration_seconds"] is None:
+                        sd = vstream.get("duration")
+                        if sd is not None:
+                            out["duration_seconds"] = float(sd)
+                            out["duration_source"] = "ffprobe"
+        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError, ValueError, TypeError):
             pass
 
-    # Stub: rough estimate ~1 MB/s for short clips (demo only)
-    size = path.stat().st_size
-    stub = max(3.0, min(90.0, size / (1024 * 1024)))
-    return round(stub, 1), "stub"
+    if out["duration_seconds"] is None:
+        # Stub: rough estimate ~1 MB/s for short clips (demo only)
+        size = path.stat().st_size
+        stub = max(3.0, min(90.0, size / (1024 * 1024)))
+        out["duration_seconds"] = round(stub, 1)
+        out["duration_source"] = "stub"
+
+    return out
 
 
 def mock_pack(filename: str, prompt: str, meta: VideoMeta) -> PublishPack:
@@ -113,10 +176,8 @@ def mock_pack(filename: str, prompt: str, meta: VideoMeta) -> PublishPack:
         "SustainableAI",
         "KompactReady",
     ]
-    # Mix in prompt tokens as hashtags
     for tok in re.findall(r"[A-Za-z]{3,}", prompt)[:5]:
         tags.append(tok.capitalize())
-    # Dedupe preserve order
     seen: set[str] = set()
     hashtags = []
     for t in tags:
@@ -129,16 +190,25 @@ def mock_pack(filename: str, prompt: str, meta: VideoMeta) -> PublishPack:
     mid = max(2.0, dur * 0.35)
     end_cut = max(mid + 1.0, dur * 0.85)
 
+    res_bits = []
+    if meta.width and meta.height:
+        res_bits.append(f"{meta.width}x{meta.height}")
+    if meta.codec:
+        res_bits.append(meta.codec)
+    res_note = f" ({', '.join(res_bits)})" if res_bits else ""
+
     return PublishPack(
         mode="MOCK",
         title=title,
         captions=captions,
         hashtags=[f"#{h}" for h in hashtags[:12]],
         description=(
-            f"[MOCK] Publish pack for «{stem}».\n\n"
+            f"[MOCK] Publish pack for «{stem}»{res_note}.\n\n"
             f"Creator prompt: {prompt or '(none)'}\n\n"
+            f"Duration ~{dur}s (source={meta.duration_source}). "
             "Generated without an API key for offline demo. "
             "Set API_KEY + BASE_URL + MODEL for LLM-backed packs. "
+            "Phase 1 is metadata-first (not full video understanding). "
             "Swap BASE_URL later to Kompact CPU runtime — same client."
         ),
         trim_suggestions=[
@@ -164,6 +234,35 @@ def mock_pack(filename: str, prompt: str, meta: VideoMeta) -> PublishPack:
     )
 
 
+def _extract_json_object(text: str) -> dict[str, Any]:
+    """Parse JSON from LLM text; strip fences; recover first {...} if needed."""
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+    cleaned = cleaned.strip()
+
+    try:
+        data = json.loads(cleaned)
+        if isinstance(data, dict):
+            return data
+    except json.JSONDecodeError:
+        pass
+
+    # Recover first JSON object substring
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            data = json.loads(cleaned[start : end + 1])
+            if isinstance(data, dict):
+                return data
+        except json.JSONDecodeError:
+            pass
+
+    raise json.JSONDecodeError("no JSON object found", cleaned, 0)
+
+
 async def llm_pack(filename: str, prompt: str, meta: VideoMeta) -> PublishPack:
     base = _env("BASE_URL", "https://api.openai.com/v1").rstrip("/")
     api_key = _env("API_KEY")
@@ -175,14 +274,26 @@ async def llm_pack(filename: str, prompt: str, meta: VideoMeta) -> PublishPack:
         "title (string), captions (array of 3 strings), hashtags (array of "
         "8-12 strings starting with #), description (string, 2-4 sentences), "
         "trim_suggestions (array of objects with start_sec, end_sec, reason). "
-        "Be concrete and India-creator friendly. No markdown fences."
+        "Be concrete and India-creator friendly. No markdown fences. "
+        "You only receive filename + lightweight probe metadata + the creator "
+        "prompt — not a transcript or frame analysis. Do not invent spoken "
+        "dialogue; ground copy in the prompt and metadata."
+    )
+    res = (
+        f"{meta.width}x{meta.height}"
+        if meta.width and meta.height
+        else "unknown"
     )
     user = (
         f"Video filename: {filename}\n"
-        f"Duration seconds: {meta.duration_seconds} (source={meta.duration_source})\n"
+        f"Duration seconds: {meta.duration_seconds} "
+        f"(source={meta.duration_source})\n"
+        f"Resolution: {res}\n"
+        f"Codec: {meta.codec or 'unknown'}\n"
+        f"Probe: {meta.probe_source}\n"
         f"Size bytes: {meta.size_bytes}\n"
         f"Creator prompt: {prompt or '(none — invent a useful angle)'}\n"
-        "Produce a publish-ready pack."
+        "Produce a publish-ready pack from metadata + prompt only."
     )
 
     url = f"{base}/chat/completions"
@@ -190,7 +301,7 @@ async def llm_pack(filename: str, prompt: str, meta: VideoMeta) -> PublishPack:
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    body = {
+    body: dict[str, Any] = {
         "model": model,
         "messages": [
             {"role": "system", "content": system},
@@ -198,40 +309,44 @@ async def llm_pack(filename: str, prompt: str, meta: VideoMeta) -> PublishPack:
         ],
         "temperature": 0.7,
     }
+    # Prefer JSON mode when the endpoint supports it (OpenAI + many compat)
+    body["response_format"] = {"type": "json_object"}
+
+    async def _post(payload: dict[str, Any]) -> str:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(url, headers=headers, json=payload)
+            # Some OpenAI-compat servers reject response_format — retry without
+            if resp.status_code in (400, 422) and "response_format" in payload:
+                retry = {k: v for k, v in payload.items() if k != "response_format"}
+                resp = await client.post(url, headers=headers, json=retry)
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
 
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(url, headers=headers, json=body)
-            resp.raise_for_status()
-            payload = resp.json()
-            content = payload["choices"][0]["message"]["content"]
+        content = await _post(body)
     except Exception as exc:  # noqa: BLE001 — surface as HTTP for demo UX
         raise HTTPException(
             status_code=502,
             detail=f"LLM call failed ({type(exc).__name__}): {exc}",
         ) from exc
 
-    # Strip optional fences
-    text = content.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
-
     try:
-        data = json.loads(text)
+        data = _extract_json_object(content)
     except json.JSONDecodeError as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"LLM returned non-JSON: {text[:400]}",
+            detail=f"LLM returned non-JSON: {content[:400]}",
         ) from exc
 
     return PublishPack(
         mode="LLM",
         title=str(data.get("title", "Untitled")),
         captions=[str(c) for c in data.get("captions", [])][:5] or ["(no caption)"],
-        hashtags=[str(h) if str(h).startswith("#") else f"#{h}" for h in data.get("hashtags", [])][
-            :15
-        ],
+        hashtags=[
+            str(h) if str(h).startswith("#") else f"#{h}"
+            for h in data.get("hashtags", [])
+        ][:15],
         description=str(data.get("description", "")),
         trim_suggestions=list(data.get("trim_suggestions", []))[:5],
         video=meta,
@@ -247,6 +362,8 @@ async def health() -> dict[str, Any]:
         "has_api_key": bool(_env("API_KEY")),
         "base_url": _env("BASE_URL", "https://api.openai.com/v1"),
         "model": _env("MODEL", "gpt-4o-mini"),
+        "ffprobe": bool(shutil.which("ffprobe")),
+        "version": app.version,
     }
 
 
@@ -269,13 +386,17 @@ async def publish_pack(
         tmp.write(raw)
 
     try:
-        duration, source = probe_duration(tmp_path)
+        probed = probe_video(tmp_path)
         meta = VideoMeta(
             filename=video.filename,
             size_bytes=len(raw),
             content_type=video.content_type,
-            duration_seconds=duration,
-            duration_source=source,
+            duration_seconds=probed["duration_seconds"],
+            duration_source=probed["duration_source"],
+            width=probed["width"],
+            height=probed["height"],
+            codec=probed["codec"],
+            probe_source=probed["probe_source"],
         )
 
         if not _env("API_KEY"):

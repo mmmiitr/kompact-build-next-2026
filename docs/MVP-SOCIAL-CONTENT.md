@@ -17,7 +17,7 @@ Upload a **short video** + a **prompt** → get a **publish-ready pack**: title,
 | --- | --- |
 | Creator workflow helper for Reels / Shorts / TikTok-style clips | Kabootri (or any) social **upload** / posting client |
 | OpenAI-compatible LLM client (`BASE_URL` / `API_KEY` / `MODEL`) | Hard-wired to one cloud vendor |
-| Metadata-aware (duration via ffprobe when present) | Full multimodal video understanding in Phase 1 |
+| Metadata-first (duration, resolution, codec via ffprobe when present) | Full multimodal / Whisper transcript in Phase 1 |
 | Runnable offline with labeled **MOCK** packs | Dependent on paid API for demo |
 
 ## Why this product (vs earlier brainstorm)
@@ -49,7 +49,7 @@ Browser (static index.html)
     ▼
 FastAPI  POST /api/publish-pack
     ├─ save temp file
-    ├─ ffprobe duration (or size-based stub)
+    ├─ ffprobe duration + w×h + codec (or size-based duration stub)
     ├─ if API_KEY empty → deterministic MOCK pack (labeled)
     └─ else → OpenAI-compatible chat.completions → JSON pack
 ```
@@ -87,5 +87,8 @@ Static upload UI.
 ## Related docs
 
 - [`PHASE1-ANALYSIS.md`](./PHASE1-ANALYSIS.md) — earlier option matrix (historical)
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — early agentic draft (superseded for Phase 1 product; LLM client pattern still applies)
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — shipped social MVP architecture
 - [`SUBMISSION.md`](./SUBMISSION.md) — paste-ready Phase 1 entry text
+- [`DEMO-SCRIPT.md`](./DEMO-SCRIPT.md) — 2–3 min judge script
+- [`EXPERT-REVIEW-PROMPT.md`](./EXPERT-REVIEW-PROMPT.md) — paste-ready external review prompt
+- [`EXPERT-REVIEW-2026-09-17.md`](./EXPERT-REVIEW-2026-09-17.md) — expert review (2026-09-17)

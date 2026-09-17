@@ -8,7 +8,12 @@ Tracking: [`krantikaridev/self` #66](https://github.com/krantikaridev/self/issue
 Product: [`docs/MVP-SOCIAL-CONTENT.md`](./docs/MVP-SOCIAL-CONTENT.md)  
 Submission draft: [`docs/SUBMISSION.md`](./docs/SUBMISSION.md)
 
-OpenAI-compatible via `BASE_URL` / `API_KEY` / `MODEL`. **Not** a Kabootri (or any) upload/posting client.
+### Honest Phase 1 scope
+
+- **Metadata-first:** filename + `ffprobe` meta (duration, width/height, codec when available) + creator prompt.
+- **Not** full video understanding (no Whisper/transcript or vision in this build — roadmap later).
+- OpenAI-compatible via `BASE_URL` / `API_KEY` / `MODEL`. Empty `API_KEY` → labeled **MOCK** packs.
+- **Not** a Kabootri (or any) upload/posting client — the tool drafts; the creator publishes.
 
 ## Quick start
 
@@ -28,19 +33,28 @@ Open http://127.0.0.1:8000
 ```bash
 cp .env.example .env
 # edit BASE_URL, API_KEY, MODEL
-export $(grep -v '^#' .env | xargs)   # or use your preferred env loader
+# python-dotenv loads .env automatically on app import
 uvicorn app.main:app --reload --port 8000
 ```
 
 With **empty `API_KEY`**, `POST /api/publish-pack` returns a deterministic pack with `"mode": "MOCK"` (no network, no spend).
 
-Optional: install `ffmpeg`/`ffprobe` for real duration metadata; otherwise duration is a size-based stub.
+Optional: install `ffmpeg`/`ffprobe` for real duration/resolution/codec metadata; otherwise duration is a size-based stub (still labeled in the response).
+
+### One-command smoke
+
+```bash
+# with server already running on :8000
+./scripts/demo_smoke.sh
+# or let the script start uvicorn briefly:
+START_SERVER=1 ./scripts/demo_smoke.sh
+```
 
 ### API
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| `GET` | `/` | Upload UI |
+| `GET` | `/` | Upload UI (copy buttons + video meta + MOCK/LLM badge) |
 | `GET` | `/health` | Liveness + config flags (no secrets) |
 | `POST` | `/api/publish-pack` | multipart: `video`, `prompt` → JSON pack |
 
@@ -50,7 +64,10 @@ Optional: install `ffmpeg`/`ffprobe` for real duration metadata; otherwise durat
 | --- | --- |
 | [`docs/MVP-SOCIAL-CONTENT.md`](./docs/MVP-SOCIAL-CONTENT.md) | Locked product + CPU/Kompact narrative |
 | [`docs/SUBMISSION.md`](./docs/SUBMISSION.md) | Paste-ready Phase 1 portal text |
-| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Current architecture |
+| [`docs/DEMO-SCRIPT.md`](./docs/DEMO-SCRIPT.md) | 2–3 min judge demo script |
+| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Current social MVP architecture |
+| [`docs/EXPERT-REVIEW-PROMPT.md`](./docs/EXPERT-REVIEW-PROMPT.md) | Paste-ready external review prompt |
+| [`docs/EXPERT-REVIEW-2026-09-17.md`](./docs/EXPERT-REVIEW-2026-09-17.md) | Blunt expert review + P0/P1 |
 | [`docs/PHASE1-ANALYSIS.md`](./docs/PHASE1-ANALYSIS.md) | Earlier brainstorm / option matrix (historical) |
 
 ## License
