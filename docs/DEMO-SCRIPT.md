@@ -41,6 +41,13 @@ Have a short clip ready (any 5–30 s phone video), or use the ffmpeg sample fro
 - [ ] Copy buttons work for title / captions / hashtags / description
 - [ ] Stated clearly: not a social uploader; metadata-first Phase 1
 
+## Fixture prompts (same screenshot for two reviewers)
+
+1. `30s tip for indie founders shipping on CPU budgets — India creators.`
+2. `Hook for a Jaipur street-food reel aimed at weekend tourists.`
+
+MOCK title is deterministic from filename + prompt hash. Use the same clip filename if comparing screenshots.
+
 ## Optional second take (LLM)
 
 ```bash

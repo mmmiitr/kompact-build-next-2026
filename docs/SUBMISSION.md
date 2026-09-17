@@ -39,6 +39,8 @@ A minimal FastAPI + static UI MVP:
 
 **Honest scope:** Phase 1 does **not** transcribe audio or run vision models. Copy is grounded in **prompt + probe metadata**. Roadmap: optional Whisper/transcript later. This is a **content helper tool**, **not** a Kabootri (or any) social upload/posting client.
 
+> This Phase 1 app is a **narrow generation tool** (one OpenAI-compatible chat completion). It is not an agent loop, not RAG, and not a predictive model.
+
 ## Real-world impact
 
 - Speeds caption/hashtag drafting for indie creators, educators, and SME marketers in India.
@@ -95,6 +97,7 @@ Full script: [`docs/DEMO-SCRIPT.md`](./DEMO-SCRIPT.md)
 - Product note: `docs/MVP-SOCIAL-CONTENT.md`
 - Architecture: `docs/ARCHITECTURE.md`
 - Expert review: `docs/EXPERT-REVIEW-2026-09-17.md`
+- Expert review (HEAD `1fab761`): `docs/EXPERT-REVIEW-2026-09-17-HEAD.md`
 
 ## Eligibility reminder (self-check)
 
